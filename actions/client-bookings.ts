@@ -3,18 +3,24 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
-export async function approveBookingRequest(formData: FormData) {
+export async function approveBookingRequest(formData: FormData): Promise<void> {
   const requestId = String(formData.get('requestId') || '');
-  if (!requestId) return { success: false, error: 'Solicitação inválida.' };
+
+  if (!requestId) {
+    throw new Error('Solicitação inválida.');
+  }
 
   const supabase = await createClient();
+
   const { data: request, error: requestError } = await supabase
     .from('booking_requests')
     .select('*')
     .eq('id', requestId)
     .single();
 
-  if (requestError || !request) return { success: false, error: 'Solicitação não encontrada.' };
+  if (requestError || !request) {
+    throw new Error('Solicitação não encontrada.');
+  }
 
   let customerId: string | null = null;
 
@@ -38,7 +44,10 @@ export async function approveBookingRequest(formData: FormData) {
       .select('id')
       .single();
 
-    if (customerError || !newCustomer) return { success: false, error: 'Não foi possível criar a cliente.' };
+    if (customerError || !newCustomer) {
+      throw new Error('Não foi possível criar a cliente.');
+    }
+
     customerId = newCustomer.id;
   }
 
@@ -53,16 +62,19 @@ export async function approveBookingRequest(formData: FormData) {
     notes: request.notes || null
   });
 
-  if (appointmentError) return { success: false, error: appointmentError.message };
+  if (appointmentError) {
+    throw new Error(appointmentError.message);
+  }
 
   const { error: updateError } = await supabase
     .from('booking_requests')
     .update({ status: 'approved' })
     .eq('id', request.id);
 
-  if (updateError) return { success: false, error: updateError.message };
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
 
   revalidatePath('/app/solicitacoes');
   revalidatePath('/app/agenda');
-  return { success: true };
 }
