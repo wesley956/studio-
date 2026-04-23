@@ -1,9 +1,10 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { bookingRequestSchema } from '@/lib/validations/booking';
 
-export async function createPublicBookingRequest(formData: FormData) {
+export async function createPublicBookingRequest(formData: FormData): Promise<void> {
   const parsed = bookingRequestSchema.safeParse({
     businessId: formData.get('businessId'),
     serviceId: formData.get('serviceId'),
@@ -15,10 +16,11 @@ export async function createPublicBookingRequest(formData: FormData) {
   });
 
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message || 'Dados inválidos.' };
+    throw new Error(parsed.error.issues[0]?.message || 'Dados inválidos.');
   }
 
   const supabase = await createClient();
+
   const { error } = await supabase.from('booking_requests').insert({
     business_id: parsed.data.businessId,
     service_id: parsed.data.serviceId || null,
@@ -32,8 +34,8 @@ export async function createPublicBookingRequest(formData: FormData) {
   });
 
   if (error) {
-    return { success: false, error: error.message };
+    throw new Error('Não foi possível enviar a solicitação.');
   }
 
-  return { success: true };
+  revalidatePath('/');
 }
