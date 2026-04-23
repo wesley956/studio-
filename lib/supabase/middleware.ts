@@ -37,6 +37,18 @@ export async function updateSession(request: NextRequest) {
   const isAppPage = pathname.startsWith('/app');
   const isAdminPage = pathname.startsWith('/admin');
 
+  let role: string | null = null;
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    role = profile?.role ?? null;
+  }
+
   if ((isAppPage || isAdminPage) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth/login';
@@ -45,7 +57,19 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthPage && user) {
     const url = request.nextUrl.clone();
+    url.pathname = role === 'admin' ? '/admin' : '/app';
+    return NextResponse.redirect(url);
+  }
+
+  if (isAdminPage && user && role !== 'admin') {
+    const url = request.nextUrl.clone();
     url.pathname = '/app';
+    return NextResponse.redirect(url);
+  }
+
+  if (isAppPage && user && role === 'admin') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/admin';
     return NextResponse.redirect(url);
   }
 
