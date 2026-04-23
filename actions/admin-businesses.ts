@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { businessSchema } from '@/lib/validations/business';
 
-export async function createBusiness(formData: FormData) {
+export async function createBusiness(formData: FormData): Promise<void> {
   const parsed = businessSchema.safeParse({
     ownerId: formData.get('ownerId'),
     businessName: formData.get('businessName'),
@@ -18,9 +18,12 @@ export async function createBusiness(formData: FormData) {
     status: formData.get('status') || 'trial'
   });
 
-  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || 'Dados inválidos.' };
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Dados inválidos.');
+  }
 
   const supabase = await createClient();
+
   const { error } = await supabase.from('businesses').insert({
     owner_id: parsed.data.ownerId,
     business_name: parsed.data.businessName,
@@ -34,7 +37,9 @@ export async function createBusiness(formData: FormData) {
     status: parsed.data.status
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    throw new Error(error.message);
+  }
+
   revalidatePath('/admin/clientes');
-  return { success: true };
 }
